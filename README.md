@@ -1,11 +1,21 @@
 # KubernetesPractice
 
+Table of Contents:
+
+
 * `Controller` (Master): API Server, Kube-Controller, Cloud-Controller, etcd (Database)
 * `Node` (Worker): kubelet, kube-proxy, container manager
 * `Pods` (Cluster)
-* `Namespace`
+* `Namespace` (Grouping)
 * `Label`
 * `Annotation` (Label with bigger size)
+* `Replication Controller`
+* `Replica Sets`
+* `Daemon Sets`
+* `Job`
+* `Cronjob`
+* `Service` (Gateway)
+* `Endpoints`
 
 ## 1. What is Kubernetes?
 
@@ -15,7 +25,7 @@ Kubernetes is used for automation deployment and managing applications container
 
 * Use `Docker Desktop` > `Settings` > `Enable Kubernetes`
 
-:warning: Dont forget to `Reset Cluster` after installation
+:warning: Dont forget to `Reset Cluster` after installation, if Kubernetes still not working, pelase restart your `Docker Desktop`
 
 ## 3. Kubernetes Node
 
@@ -51,6 +61,11 @@ kubectl get pod
 To check pod detail:
 ```console
 kubectl describe pod <pod-name>
+```
+
+To check pod log:
+```console
+kubectl logs <pod-name>
 ```
 
 ### 4.1. Create Pod
@@ -283,7 +298,7 @@ spec:
         failureThreshold: 3
       readinessProbe:
         httpGet:
-          path: /
+          path: /ready
           port: 80
         initialDelaySeconds: 0
         periodSeconds: 10
@@ -292,7 +307,7 @@ spec:
         failureThreshold: 3
       startupProbe:
         httpGet:
-          path: / 
+          path: /startup
           port: 80
         initialDelaySeconds: 0
         periodSeconds: 10
@@ -364,6 +379,73 @@ spec:
 - **Performance**: Probes should be frequent enough to detect issues promptly but not so frequent that they create unnecessary load on the system.
 - **Fault Tolerance**: The failure and success thresholds allow Kubernetes to distinguish between transient issues and real problems, ensuring that containers are only restarted when necessary.
 
+### Healthy (Liveness Probe)
+
+**Healthy** means that the application is running correctly and is not stuck or in a state that requires restarting. The liveness probe checks the ongoing health of the application.
+
+**Example**: A simple health check might verify that the application process is running and can respond to requests.
+
+**Code Example**:
+```python
+@app.route('/health', methods=['GET'])
+def health():
+    # Perform checks to determine if the application is healthy
+    # For example, check if the database connection is alive
+    try:
+        # Simulate a check, e.g., database connection
+        db_connection = True  # Replace with actual health check logic
+        if db_connection:
+            return jsonify(status='healthy'), 200
+        else:
+            return jsonify(status='unhealthy'), 500
+    except Exception as e:
+        return jsonify(status='unhealthy', error=str(e)), 500
+```
+
+### Ready (Readiness Probe)
+
+**Ready** means that the application is ready to handle requests. The readiness probe checks whether the application is fully initialized and ready to serve traffic. If the readiness probe fails, the application will not receive any traffic from the service.
+
+**Example**: A readiness check might verify that all necessary components (like external services or databases) are available and the application is fully initialized.
+
+**Code Example**:
+```python
+@app.route('/ready', methods=['GET'])
+def ready():
+    # Perform checks to determine if the application is ready to serve traffic
+    try:
+        # Simulate a check, e.g., database availability, service connectivity
+        service_ready = True  # Replace with actual readiness check logic
+        if service_ready:
+            return jsonify(status='ready'), 200
+        else:
+            return jsonify(status='not ready'), 500
+    except Exception as e:
+        return jsonify(status='not ready', error=str(e)), 500
+```
+
+### Startup (Startup Probe)
+
+**Startup** means that the application has completed its startup routine and is ready to be checked by liveness and readiness probes. The startup probe checks that the application has started up correctly.
+
+**Example**: A startup check might verify that all initial setup tasks (like schema migrations, configuration loading, etc.) are completed.
+
+**Code Example**:
+```python
+@app.route('/startup', methods=['GET'])
+def startup():
+    # Perform checks to determine if the application has started up correctly
+    try:
+        # Simulate a startup check, e.g., ensure all initializations are complete
+        startup_complete = True  # Replace with actual startup check logic
+        if startup_complete:
+            return jsonify(status='started up'), 200
+        else:
+            return jsonify(status='not started up'), 500
+    except Exception as e:
+        return jsonify(status='not started up', error=str(e)), 500
+```
+
 In summary, these parameters provide fine-grained control over how Kubernetes monitors and manages the health of your containers, helping to maintain the stability and reliability of your applications.
 
 ## 9. Replication Controller
@@ -386,20 +468,162 @@ kubectl get rc
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: nama-replication-controller
+  name: nginx
+spec:
+  replicas: 3
+  selector:
+    app: mynginx
+  template:
+    metadata:
+      name: nginx # pod-name
+      labels:
+        app: mynginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 80
+```
+
+:warning:Note: if you try to delete one of the pods, the `Replication Controller` will create it again in another node. You can try with `kubectl delete pod <pod-name>` command, then check again using `kubectl get pods`
+
+### 9.2. Delete Replication Controller
+
+To delete RC:
+```console
+kubectl delete rc <rc-name>
+```
+
+To delete RC without deleting the Pods within:
+```console
+kubectl delete rc <rc-name> --cascade=false
+```
+
+## 10. Replica Set
+
+* `Replica Set` is a new version `Replication Controller`
+* `Replica Set` has label selector feature which more expressive rather than `Replication Controller`
+
+
+### 10.1. Create Replica Set
+
+To check `Replication Set`:
+```console
+kubectl get rs
+```
+
+Template:
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet # -> this also
+...
+spec:
+  replicas: 3
+  selector:
+    matchLabels: # -> this the new feature
+      label-key1: label-value1
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+...
+```
+
+### 10.2. Delete Replica Set
+
+To delete Replica Set:
+```console
+kubectl delete rs <rs-name>
+```
+
+### 10.3. Label Selector Match Expression Replica Set
+
+* `matchLabels`, key=value pair must exact
+* `matchExpression`, In, NotInt, Exist, NotExist
+
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+...
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      label-key1: label-value1
+    matchExpressions: # -> matchExpression
+      - key: label-key # Key
+        operator: In # Operator
+        values:
+          - label-value1
+          - label-value2
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+...
+```
+
+## 11. Daemon Set
+
+* When we use `Replica Set`, `Pod` will be running in random node, it's set by kubernetes.
+* If we want to run our `Pods` in every node, and `1 Pod` should only allowed to run in `1 Node`, we can use Daemon Set
+* By default, Daemon Set will run our `Pods` on every nodes in our Kubernetes Cluster.
+
+Use case of `1 Pod 1 Node`:
+
+* Application for monitoring Node
+* Application for get logs in Node
+* etc.
+
+To check daemon set:
+```console
+kubectl get daemonsets
+kubectl get ds
+```
+
+To delete daemon set:
+```console
+kubectl delete daemonsets <daemonsets-name>
+kubectl delete ds <daemonsets-name>
+```
+
+To check details daemonsets:
+```console
+kubectl describe daemonsets <daemonsets-name>
+kubectl describe ds <daemonsets-name>
+```
+
+Template:
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet # -> this new
+metadata:
+  name: daemon-set-name
   labels:
-    label-key1: label-value1 # reference
+    label-key1: label-value1
   annotations:
     annotation-key1: annotation-value1
 spec:
-  replicas: 3
-  selector: # this is the important
-    label-key1: label-value1 # it refers to metadata labels name in template metadata for container
+  selector:
+    matchLabels:
+      label-key1: label-value1
+    matchExpressions:
+      - key: label-key1
+        operator: In
+        values:
+          - label-value1
   template:
     metadata:
-      name: nama-pod
+      name: pod-name
       labels:
-        label-key1: label-value1 # reference
+        label-key1: label-value1
     spec:
       containers:
         - name: container-name
@@ -417,9 +641,338 @@ spec:
             timeoutSeconds: 1
 ```
 
-Note: if you try to delete one of the pods, the `Replication Controller` will create it again in another node. You can try with `kubectl delete pod <pod-name>` command, then check again using `kubectl get pods`
+## 12. Job
 
+* `Job` is a `Pod` that will only run once then stop
+* `Job` will be terminated after the task is done
 
+Use Case:
+* Backup and Restore Database
+* Import and Export Data
+* Process Batch
+* etc.
 
+To create Job:
+```console
+kubectl create -f job.yaml
+```
 
+To check jobs:
+```console
+kubectl get jobs
+```
 
+To delete Job:
+```console
+kubectl delete job <job-name>
+```
+
+Template:
+```yaml
+apiVersion: batch/v1
+kind: Job # -> this new!
+metadata:
+  name: job-name
+  labels:
+    label-key1: label-value1
+  annotations:
+    annotation-key1: annotation-value1
+spec:
+  completions: 5 # -> after 5 times, the job will stop
+  parallelism:  2 # -> how many pods to do the completions, e.g if we set: 2 to completion 5, then it will be: 2, 2, and then 1.
+  selector:
+    matchLabels:
+      abel-key1: label-value1
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+    spec:
+      restartPolicy: Never # -> make sure our restart policy for our container is never, because it's a job.
+      containers:
+        - name: container-name
+          image: image-name
+          ports:
+            - containerPort: 80
+```
+
+## 13. Cron Job
+
+* Kubernetes support `Cron Job`
+
+Use cases of cron job:
+* Daily Report
+* Periodically Backup
+* etc.
+
+try: [crontab.guru](crontab.guru)
+
+To create cronjobs:
+```console
+kubectl create -f cronjobs.yaml
+```
+
+To get cronjobs:
+```console
+kubectl get cronjobs
+```
+
+To delete cronjobs:
+```console
+kubectl delete cronjobs <cronjobs-name>
+```
+
+Template:
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob # -> kind is CronJob
+metadata:
+  name: cron-job-name
+  labels:
+    label-key: label-value
+  annotations:
+    annotation-key1: annotation-value1
+spec:
+  schedule: "* * * * *" # -> the schedule
+  jobTemplate:
+    spec:
+      selector:
+        matchLabels:
+          label-key1: label-value1
+      template:
+        metadata:
+          name: pod-name
+          labels:
+            app: pod-la
+        spec:
+          restartPolicy: Never # -> should never restart after the job done
+          containers:
+            - name: container-name
+              image: image-name
+              ports:
+                - containerPort: 80
+```
+
+## 14. Node Selector
+
+* Node selector is used for select which `Node` to runs our `Pods`
+
+To add label to node:
+```console
+kubectl label node <node-name> <key>=<value>
+```
+
+### 14.1. Pod Node Selector
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-name
+spec:
+  nodeSelector:
+    gpu: "true"
+  containers:
+    - name: container-name
+      image: image-name
+      ports:
+        - containerPort: 80
+```
+
+### 14.2. Job Node Selector
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-name
+spec:
+  completions: 5
+  parallelism: 2
+  selector:
+    matchLabels:
+      abel-key1: label-value1
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        hardisk: ssd
+      containers:
+        - name: container-name
+          image: image-name
+          ports:
+            - containerPort: 80
+```
+
+### 14.3. Daemon Set Node Selector
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: daemon-set-name
+spec:
+  selector:
+    matchExpressions:
+      - key: label-key1
+        operator: In
+        values:
+          - label-value1
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+    spec:
+      nodeSelector:
+        hardisk: ssd # -> node Selector
+      containers:
+        - name: container-name
+          image: image-name
+          ports:
+            - containerPort: 80
+...
+```
+
+### 14.4. Cron Job Node Selector
+
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cron-job-name
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      selector:
+        matchLabels:
+          abel-key1: label-value1
+      template:
+        metadata:
+          name: pod-name
+          labels:
+            app: pod-la
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            hardisk: ssd # -> node selector
+          containers:
+            - name: container-name
+              image: image-name
+              ports:
+                - containerPort: 80
+```
+
+### 14.5. Replica Set Node Selector
+
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: replica-set-name
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      label-key1: label-value1
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+    spec:
+      nodeSelector:
+        hardisk: ssd # -> Node Selector
+      containers:
+      - name: container-name
+        image: image-name
+        ports:
+        - containerPort: 80
+```
+
+## 15. All
+
+To check all resources:
+```console
+kubectl get all
+kubectl get all --namespace <namespace>
+```
+
+To delete all resources:
+```console
+kubectl delete all
+kubectl delete all --namespace <namespace>
+```
+
+## 16. Service
+
+* Service is a way to create like gateway to access one or mode `Pods`
+* Service has an IP address and Port that will neverchange as long as the service is exist
+* Client can access the Service, and automatically will forwarding to the related Pods
+* Basically this is a way that we could cretae port forwarding to our Pods
+* You can't connect from Pod to Pod directly, it's a wrong way, you should let service handle it to you as a gateway (router)
+
+To get services:
+```console
+kubectl get services
+```
+
+To delete services:
+```console
+kubectl delete services <services-name>
+```
+
+To access service inside a cluster:
+```console
+kubectl exec <pod-name> -it -- /bin/sh
+
+curl http://culster-ip:port/
+```
+
+### 16.1. Create Service
+
+* Service will use `label selector` to know which Pod behind the service.
+
+Template:
+```yaml
+apiVersion: v1
+kind: Service # -> Kind is Service
+metadata:
+  name: service-name
+spec:
+  selector:
+    label-key1: label-value1
+  ports:
+  - port: 8080
+    targetPort: 80
+```
+
+To try access the service pod:
+```console
+kubectl exec -it curl -- /bin/sh
+curl http://<SERVICE_IP>:<SERVICE_PORT>
+```
+
+### 16.2. How to Access Service?
+
+* Using `Environment Variable`
+To check Environment Variable:
+```console
+kubectl exec <pod-name> -- env
+```
+
+* Using `DNS`
+```console
+service-name.namespace.svc.cluster.local
+```
+
+To check all endpoints:
+```console
+kubectl get endpoints
+```
