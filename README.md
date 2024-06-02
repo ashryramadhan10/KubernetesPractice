@@ -957,6 +957,7 @@ To try access the service pod:
 ```console
 kubectl exec -it curl -- /bin/sh
 curl http://<SERVICE_IP>:<SERVICE_PORT>
+curl http://service-name.namespace.svc.cluster.local:<service-port>
 ```
 
 ### 16.2. How to Access Service?
@@ -967,6 +968,8 @@ To check Environment Variable:
 kubectl exec <pod-name> -- env
 ```
 
+And we can use the `Environment Variable` inside our apps to access other `Pods`.
+
 * Using `DNS`
 ```console
 service-name.namespace.svc.cluster.local
@@ -976,3 +979,5 @@ To check all endpoints:
 ```console
 kubectl get endpoints
 ```
+
+:exclamation:Tips: better to use DNS to avoid confusion
