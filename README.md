@@ -11,7 +11,8 @@ Table of Contents:
 * `Annotation` (Label with bigger size)
 * `Replication Controller`
 * `Replica Sets`
-* `Daemon Sets`
+* `Daemon Sets` (Deploy pod to all nodes)
+* `Node Selector`
 * `Job`
 * `Cronjob`
 * `Service` (Gateway)
