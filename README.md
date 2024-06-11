@@ -3,7 +3,7 @@
 Table of Contents:
 
 
-* `Controller` (Master): API Server, Kube-Controller, Cloud-Controller, etcd (Database)
+* `Controller` (Master): API Server, Scheduler, Kube-Controller, Cloud-Controller, etcd (Database)
 * `Node` (Worker): kubelet, kube-proxy, container manager
 * `Pods` (Cluster)
 * `Namespace` (Grouping)
@@ -982,3 +982,58 @@ kubectl get endpoints
 ```
 
 :exclamation:Tips: better to use DNS to avoid confusion
+
+## 17. External Services
+
+* Usually, `Services` is used for internal `Pods`
+* `External Services` is used for external application which located outside of our `Kubernetes Cluster`
+
+To describe service:
+```
+kubectl describe service <service-name>
+
+kubectl get endpoints <service-name>
+```
+
+Service with Endpoint Template:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-service
+  labels:
+    label-key1: label-value1
+spec:
+  ports:
+    - port: 80
+
+---
+
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: external-service
+  labels:
+    label-key1: label-value1
+subsets:
+  - addresses:
+      - ip: 11.11.11.11
+      - ip: 22.22.22.22
+    ports:
+      - port: 80
+```
+
+Service with DNS:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-service
+  labels:
+    label-key1: label-value1
+spec:
+  type: ExternalName
+  externalName: example.com
+  ports:
+    - port: 80
+```
