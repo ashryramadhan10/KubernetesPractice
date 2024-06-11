@@ -1038,3 +1038,16 @@ spec:
   ports:
     - port: 80
 ```
+
+## 18. Service Types
+
+* `ClusterIP`: Exposing service for internal kubernetes cluster.
+* `ExternalName`: Mapping the service to external name e.g: example.com
+* `NodePort`: Exposing service to every IP Node with identical port. To access this: `NodeIP:NodePort`
+* `LoadBalancer`: Exposing service externally using LoadBalancer from cloud service.
+
+### 18.1. Exposing Service Methods
+
+* `NodePort`: node will open the port and forward the request to the service
+* `LoadBalancer`: service can be accessed via LoadBalancer, and LoadBalancer will forward the request to NodePort, and from NodePort to the service
+* `Ingress`: Is a method to exposing service, but only in http level.
