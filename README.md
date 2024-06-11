@@ -16,6 +16,7 @@ Table of Contents:
 * `Job`
 * `Cronjob`
 * `Service` (Gateway)
+* `External Service`
 * `Endpoints`
 
 ## 1. What is Kubernetes?
