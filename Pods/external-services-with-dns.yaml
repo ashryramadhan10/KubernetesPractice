@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: example-service
+  name: external-service
   labels:
-    name: example-service
+    project: external-service
 spec:
   type: ExternalName
   externalName: example.com
@@ -17,12 +17,12 @@ kind: Pod
 metadata:
   name: curl
   labels:
-    name: curl
+    project: external-service
 spec:
   containers:
     - name: curl
-      image: ashryramadhan10/nginx-curl
+      image: localhost:5000/curl:latest
       resources:
         limits:
-          memory: "128Mi"
-          cpu: "250m"
+          memory: "100Mi"
+          cpu: "100m"

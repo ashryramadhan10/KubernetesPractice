@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-service
+  labels:
+    project: external-service
+spec:
+  ports:
+    - port: 8000
+
+---
+
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: external-service # must be same with service name
+  labels:
+    project: external-service
+subsets:
+  - addresses:
+      - ip: 192.168.0.145
+    ports:
+      - port: 8000
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: curl
+  labels:
+    project: external-service
+spec:
+  containers:
+    - name: curl
+      image: localhost:5000/curl:latest
+      resources:
+        limits:
+          memory: "100Mi"
+          cpu: "100m"

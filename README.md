@@ -984,7 +984,7 @@ kubectl get endpoints
 
 :exclamation:Tips: better to use DNS to avoid confusion
 
-## 17. External Services
+## 17. Access External Services
 
 * Usually, `Services` is used for internal `Pods`
 * `External Services` is used for external application which located outside of our `Kubernetes Cluster`
@@ -1048,6 +1048,141 @@ spec:
 
 ### 18.1. Exposing Service Methods
 
+Purpose: Exposing internal service to outside
+
 * `NodePort`: node will open the port and forward the request to the service
 * `LoadBalancer`: service can be accessed via LoadBalancer, and LoadBalancer will forward the request to NodePort, and from NodePort to the service
 * `Ingress`: Is a method to exposing service, but only in http level.
+
+## 19. Service Node Port
+
+template:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-name
+  labels:
+    label-key1: label-value1
+spec:
+  type: NodePort
+  selector:
+    label-key1: label-value1
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30001
+```
+
+example:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-port-service
+spec:
+  type: NodePort
+  selector:
+    project: node-port-service
+  ports:
+    - port: 80 # -> no need for changes from targetport
+      targetPort: 80
+      nodePort: 30001
+```
+
+Then just use the `<NodeIP>:30001` to accesss the forwarded port
+
+## 20. Service Load Balancer
+
+* `GCP` or `AWS` have their own `Cloud Load Balancer`, so no need for creating our own load balancer.
+* Kubernetes can use those load balancer to exposing the internal service
+* But, it can't be tested locally.
+* Load balancer works: `Node Port + Load Balancer`
+* Because it will be confusing if we connect directly to the node's IP address, let say we have hundreds of nodes. So, using load balancer, client just need to connect to it then client will be automatically forwarded to the specific node -> service.
+* `1 Load Balancer 1 Service`
+* No need to add `NodePort`
+
+template:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-name
+  labels:
+    label-key1: label-value1
+spec:
+  type: LoadBalancer
+  selector:
+    label-key1: label-value1
+  ports:
+    - port: 80
+      targetPort: 80
+```
+
+## 21. Ingress
+
+Problems while using:
+
+* NodePort:
+1. Each Node Port need  to be exposed to public
+2. client need to know all of the ip address for all nodes
+
+* Load Balancer:
+1. All load balancer need to be exposed to public
+2. client need to know all of the load balancer ip address
+
+`Ingress` can expose internal service like load balancer or node port.
+
+* By using `Ingress` client just need to know the `ingress` ip address.
+* If client want to choose which service, it will be using `hostname` and `request`
+* ingress only support HTTP protocol
+
+To install ingress locally:
+```console
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.1/deploy/static/provider/cloud/deploy.yaml
+```
+
+To check if our ingress was already installed, use: `kubectl get ns` then check either `kubectl get all -n kube-system` or `kubectl get all -n ingress-nginx`
+
+commands:
+```console
+kubectl get ingresses
+kubectl delete ingress <ingress-name>
+kubectl describe ingress <ingress-name>
+```
+
+template:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  labels:
+    name: nginx-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: nginx.ashry.local
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: nginx-service
+                port:
+                  number: 80
+```
+
+If you wanna try locally, just edit your `/etc/hosts` either on Windows or Linux.
+
+
