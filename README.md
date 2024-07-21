@@ -794,7 +794,7 @@ spec:
   parallelism: 2
   selector:
     matchLabels:
-      abel-key1: label-value1
+      label-key1: label-value1
   template:
     metadata:
       name: pod-name

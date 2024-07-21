@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: python-job
+  labels:
+    category: job
+    context: tutorial
+    author: ashry-ramadhan
+spec:
+  ttlSecondsAfterFinished: 100
+  completions: 3
+  parallelism: 2
+  template:
+    metadata:
+      name: job-pod
+      labels:
+        category: job
+        context: tutorial
+    spec:
+      restartPolicy: Never
+      nodeSelector: # put on a pod inside spec
+        type: main-cpu
+      containers:
+      - name: python-hello-world
+        image: localhost:5000/hello-world-python
+        # command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+

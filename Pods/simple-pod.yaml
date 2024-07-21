@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: personal
+
+--- 
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: basic-tutorial
+  namespace: personal
+  labels:
+    category: personal-pods
+    author: ashry-ramadhan
+    environment: production
+  annotations:
+    description: this is just a personal project
+spec:
+  containers:
+  - name: myapp
+    image: localhost:5000/hello-world-python
+    resources:
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+    ports:
+      - containerPort: 80
