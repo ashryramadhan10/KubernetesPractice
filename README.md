@@ -1185,4 +1185,380 @@ spec:
 
 If you wanna try locally, just edit your `/etc/hosts` either on Windows or Linux.
 
+## 22. Multi Container Pod
+
+* 1 pod can have multiple containers
+* If we scale 1 pod, then every containers inside of it will be scaled as well
+
+## 23. Volume
+
+* Any files inside a container are not permanent, so we need to bind all of that files or data into volume or bind mount
+
+### 23.1. Volume Type
+
+* `emptyDir`, empty directory
+* `hostPath`, similar to bind mount
+* `gitRepo`, clone git repository
+* `nfs`, sharing network file system
+* `gcPersistent`, from GCP
+* etc. https://kubernetes.io/id/docs/concepts/storage/volumes/#jenis-jenis-volume
+
+template:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-name
+  labels:
+    label-key1: label-value1
+    label-key2: label-value2
+    label-key3: label-value3
+spec:
+  volumes:
+    - name: volume-name
+      emptyDir: {}
+  containers:
+    - name: container-name
+      image: image-name
+      ports:
+        - containerPort: 80
+      volumeMounts:
+        - mountPath: /app/volume # <directory inside container>
+          name: volume-name
+```
+
+### 23.2. Sharing Volume
+
+* We can sharing volume from 1 container to another container in a pod
+
+template:
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      name: nginx
+  template:
+    metadata:
+      name: nginx
+      labels:
+        name: nginx
+    spec:
+      volumes:
+        - name: html
+          emptyDir: {}
+      containers:
+        - name: nodejs-writer
+          image: khannedy/nodejs-writer
+          volumeMounts:
+            - mountPath: /app/html
+              name: html
+        - name: nginx
+          image: nginx
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html
+              name: html
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: NodePort
+  selector:
+    name: nginx
+  ports:
+    - port: 8080
+      targetPort: 80
+      nodePort: 30001
+```
+
+## 24. Environment Variables
+
+* Environment variable is used for environment configuration
+
+template:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-name
+  labels:
+    label-key1: label-value1
+    label-key2: label-value2
+    label-key3: label-value3
+spec:
+  containers:
+    - name: container-name
+      image: image-name
+      ports:
+        - containerPort: 80
+      env:
+        - name: ENV_NAME
+          value: "ENV VALUE"
+```
+
+to check the env variable, just access the container using `kubectl exec` if you're using multiple container then don't forget to set `-c <container-name>`. After that, write and enter `env`.
+
+## 25. ConfigMap
+
+Work similar like `Enivronment Varibale`, we can set key=value pair inside config map, and easily change between environments.
+
+* Kubernetes has ability to seperate configurations into a ConfigMap Object
+* ConfigMap has Key=Value pairs
+
+commands:
+```console
+kubectl get configmaps
+kubectl delete configmap <configmap-name>
+kubectl describe configmap <configmap-name>
+```
+
+template:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+data:
+  ENV: VALUE
+metadata:
+  name: configmap-name
+```
+
+To check the value inside ConfigMap use `kubectl describe configmap <configmap-name>` command.
+
+## 26. Secret
+
+* ConfigMap is used for non-sensitive data, then `Secret` is used for sensitive data
+* Secret will be distributed to the Node that need it.
+* Secret is saved inside Node memory, not in physical storage. It will be saved and encrypted in Node Master at etcd.
+
+Commands:
+```console
+kubectl get secrets
+kubectl delete secret <secret-name>
+kubectl describe secret <secret-name>
+```
+
+template:
+```python
+apiVersion: v1
+kind: Secret
+metadata:
+  name: configmap-name
+data:
+  ENV: base64(VALUE)
+stringData:
+  ENV: VALUE
+```
+
+To check the value inside ConfigMap use `kubectl describe secret <secret-name>` command.
+
+## 27. Downward API
+
+* Downward API is a dynamic version of ConfigMaps or Secrets
+
+template:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nodejs-env-config
+data:
+  APPLICATION: My Cool Application
+  VERSION: 1.0.0
+
+---
+
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: nodejs-env
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      name: nodejs-env
+  template:
+    metadata:
+      name: nodejs-env
+      labels:
+        name: nodejs-env
+    spec:
+      containers:
+        - name: nodejs-env
+          image: khannedy/nodejs-env
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: nodejs-env-config
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NODE
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-env-service
+spec:
+  type: NodePort
+  selector:
+    name: nodejs-env
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30001
+```
+
+## 28. Manage Kubernetes Objects
+
+* Imperative Management
+```console
+kubectl create -f filename.yaml
+kubectl replace -f filename.yaml
+kubectl get -f filename.yaml -o yaml/json
+kubectl delete -f filename.yaml
+```
+
+* Declarative Management
+
+`apply` command wil create the objects if not exists or replace if exists
+```console
+kubeclt apply -f filename.yaml 
+```
+
+## 28. Deployment
+
+How to update application?
+
+* We use deployment to update our application
+* Deployment automatically use ReplicaSets
+
+Commands:
+```console
+kubectl apply -f deployment.yaml
+kubectl get deployment <deployment-name>
+kubectl delete deployment <deployment-name>
+kubectl describe deployment <deployment-name>
+```
+
+Template:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-name
+  labels:
+    label-key1: label-value1
+  annotations:
+    annotation-key1: annotation-value1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      label-key1: label-value1
+  template:
+    metadata:
+      name: pod-name
+      labels:
+        label-key1: label-value1
+    spec:
+      containers:
+      - name: container-name
+        image: image-name
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+          timeoutSeconds: 1
+```
+
+## 29. Update Deployment
+
+Just use `kubectl apply -f deployment.yaml` again.
+
+Just need to update the `deployment`, and change your image.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-web
+  labels:
+    name: nodejs-web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      name: nodejs-web
+  template:
+    metadata:
+      name: nodejs-web
+      labels:
+        name: nodejs-web
+    spec:
+      containers:
+        - name: nodejs-web
+          image: localhost:5000/simple-flask:2
+          ports:
+            - containerPort: 3000
+```
+
+## 30. Rollback Deployment
+
+Rollback is used for rollback to previous image version of our deployment object.
+
+Mostly will be using: `kubectl rollback undo object object-name`
+
+Commands:
+```console
+kubectl rollback history object object-name
+kubectl rollback pause object object-name
+kubectl rollback resume object object-name
+kubectl rollback restart object object-name
+kubectl rollback status object object-name
+kubectl rollback undo object object-name
+```
+
+
+
+
+
+
+
+
+
 
