@@ -1553,6 +1553,176 @@ kubectl rollback status object object-name
 kubectl rollback undo object object-name
 ```
 
+E.g:
+```console
+kubectl rollback history deployment 
+```
+
+## 31. Persistent Volume
+
+Persistent Volumen Types:
+* `HostPath`, not recommended, the data will be saved inside Node, thus if the Node is dissapear, then the data will be dissapear as well.
+* `GCEPersistentDisk`, Google Cloud Persistent Disk
+* `AWSElasticBookStore`, Amazon Web Service Persistent Disk
+* `AzureFile / AzureDisk` Microsoft Azure Persistent Disk
+* etc.
+
+How to create `Persistent Volume`:
+* Create the Persistent Volume
+* Create the Persistent Volume Claim
+* Add Persistent Volume Claim to Pod
+
+Commands:
+```console
+kubectl get pv
+kubectl describe pv <pv-name>
+kubectl delete pv
+kubectl get pvc
+kubectl describe pvc <pvc-name>
+kubectl delete pvc
+```
+
+Template:
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: persistent-volume-name
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 5Gi
+  hostPath:
+    path: /data/location
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: persistent-volume-claim-name
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+## 32. StatefulSet
+
+* Pod, ReplicaSet, ReplicationController, Deployment: these are all suitable for stateless applications.
+* Stateless means our application does not store state or data. So if our application is deleted and recreated in the middle of its operation, it won't be a problem.
+* But what about stateful applications? For example, databases? Which need to store data and cannot be arbitrarily deleted in the middle of an update
+* PersistentVolume also will not help if we have a stateful application, because all Pods will claim the same PersistentVolume and the same directory. 
+* Whereas if our application is stateful, it is very likely that we want to have independent data for each Pod, even though the type of the Pod is the same.
+* `Persistent Storage` will be created for each pods, so it's not sharing to another pods. Therefore, the `Persitent Storage Claim` value will be the same like the `Persistent Storage`.
+
+### 32.1. Stateless vs Stateful
+
+Stateless is like livestock, whereas Stateful is like pets.
+* With livestock, we don't care who dies, is slaughtered, or gets lost, as long as it can be replaced with a new one.
+* However, it's different with pets; if one gets sick, we will take care of it until it gets better, and if it dies, we will look for another with the same characteristics.
+
+### 32.2. StatefulSet
+
+* StatefulSet is an object in Kubernetes used to manage stateful applications.
+* StatefulSet ensures that there are consistent pod names, stable network identities, and stable persistent volumes for each pod. 
+* If a pod stopped, StatefulSet will create a new pod with the same name and information as the deceased pod.
+
+### 32.3. Create StatefulSet
+
+* Creating a StatefulSet is very easy, similar to creating a ReplicaSet. 
+* However, StatefulSet has the capability to add a Volume Claim Template.
+
+Commands:
+```console
+kubectl get statefulsets
+kubectl describe statefulsets <statefulset-name>
+kubectl delete statefulset
+```
+
+Template:
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: name-stateful
+  labels:
+    name: name-stateful
+spec:
+  # https://github.com/kubernetes/kubernetes/issues/69608
+  serviceName: name-stateful-service
+  replicas: 3
+  selector:
+    matchLabels:
+      name: name-stateful
+  volumeClaimTemplates:
+    - metadata:
+        name: name-stateful-volume-claim
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: 1Gi
+  template:
+    metadata:
+      name: name-stateful
+      labels:
+        name: name-stateful
+    spec:
+      containers:
+        - name: name-stateful
+          image: image/name-stateful
+          volumeMounts:
+            - mountPath: /app/data
+              name: name-stateful-volume-claim
+```
+
+## 33. Computational Resources
+
+Template:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-name
+  labels:
+    label-key1: label-value1
+    label-key2: label-value2
+    label-key3: label-value3
+spec:
+  volumes:
+    - name: volume-name
+      emptyDir: {}
+  containers:
+    - name: container-name
+      image: image-name
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          # milli core
+          cpu: 1000m
+          # mebibyte
+          memory: 250Mi
+        limits:
+          # milli core
+          cpu: 2000m
+          # mebibyte
+          memory: 500Mi
+```
+
+
+
+
+
+
+
 
 
 
